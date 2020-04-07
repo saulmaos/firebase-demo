@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Firebase demo</string>
+    <string name="notification_channel_group_general">General</string>
 </resources>
