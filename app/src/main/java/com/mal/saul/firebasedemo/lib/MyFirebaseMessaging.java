@@ -31,6 +31,7 @@ public class MyFirebaseMessaging extends FirebaseMessagingService {
         Log.d(TAG, "Mensaje recibido");
         Map<String, String> data = remoteMessage.getData();
         if (data.size() > 0) {
+            Log.d(TAG, "data: " + data);
             String title = data.get("titulo");
             String msg = data.get("mensaje");
             sendNotification(title, msg);
