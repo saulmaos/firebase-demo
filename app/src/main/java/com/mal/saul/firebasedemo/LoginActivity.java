@@ -95,6 +95,7 @@ public class LoginActivity extends AppCompatActivity {
         dlg.setTitle(title);
         dlg.setPositiveButton(R.string.ok, null);
         dlg.show();
+        /// test
     }
 
     private void loginUser(String email, String password) {
