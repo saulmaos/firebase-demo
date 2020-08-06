@@ -8,20 +8,31 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
+import com.google.android.gms.auth.api.signin.GoogleSignInClient;
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.android.gms.common.api.ApiException;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.auth.AuthCredential;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.auth.GoogleAuthProvider;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 public class LoginActivity extends AppCompatActivity {
     private final String TAG = "loginactivity";
+    private static final int GOOGLE_SIGN_IN = 1111;
     private EditText etEmail;
     private EditText etPassword;
     private Button btnSignInUp;
     private TextView tvSignInUp;
-    private FirebaseAuth mAuth;
+    private FirebaseAuth mAuthFB;
     private boolean createNewAccount = true;
+    private GoogleSignInClient googleSignInClient;
+    private Button btnGoogle;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -30,14 +41,68 @@ public class LoginActivity extends AppCompatActivity {
 
         initViews();
         setListners();
-        mAuth = FirebaseAuth.getInstance();
+
+        initGoogleClient();
+        mAuthFB = FirebaseAuth.getInstance();
     }
+
+    // [START] logging with google
+
+    private void initGoogleClient() {
+        GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestIdToken(getString(R.string.default_web_client_id))
+                .requestEmail()
+                .build();
+        googleSignInClient = GoogleSignIn.getClient(this, gso);
+    }
+
+    private void loginWithGoogle() {
+        googleSignInClient.signOut();
+        Intent signInIntent = googleSignInClient.getSignInIntent();
+        startActivityForResult(signInIntent, GOOGLE_SIGN_IN);
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == GOOGLE_SIGN_IN) {
+            Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
+            try {
+                // Google Sign In was successful
+                GoogleSignInAccount account = task.getResult(ApiException.class);
+                Log.d(TAG, "firebaseAuthWithGoogle:" + account.getId());
+                // Authenticate with Firebase
+                loginfirebaseWithGoogle(account.getIdToken());
+            } catch (ApiException e) {
+                Log.w(TAG, "Google sign in failed", e);
+            }
+        }
+    }
+
+    private void loginfirebaseWithGoogle(String idToken) {
+        AuthCredential credential = GoogleAuthProvider.getCredential(idToken, null);
+        mAuthFB.signInWithCredential(credential)
+                .addOnCompleteListener(this, task -> {
+                    if (task.isSuccessful()) {// Sign in success
+                        Log.d(TAG, "signInWithCredential:success");
+                        FirebaseUser user = mAuthFB.getCurrentUser();
+                        updateUI(user);
+                    } else { // sign in fails
+                        Log.w(TAG, "signInWithCredential:failure", task.getException());
+                        Toast.makeText(LoginActivity.this, "Error while logging with google account", Toast.LENGTH_SHORT).show();
+                    }
+                });
+    }
+
+    // [END] logging with google
 
     private void initViews() {
         etEmail = findViewById(R.id.etEmail);
         etPassword = findViewById(R.id.etPassword);
         btnSignInUp = findViewById(R.id.btnSignInUp);
         tvSignInUp = findViewById(R.id.tvSignInUp);
+        btnGoogle = findViewById(R.id.btnGoogle);
     }
 
     private boolean checkCredentials(String email, String password) {
@@ -62,11 +127,11 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void registerNewUser(String email, String password) {
-        mAuth.createUserWithEmailAndPassword(email, password)
+        mAuthFB.createUserWithEmailAndPassword(email, password)
                 .addOnCompleteListener(this, task -> {
                     if (task.isSuccessful()) { // Sign in success,
                         Log.d(TAG, "createUserWithEmail:success");
-                        FirebaseUser user = mAuth.getCurrentUser();
+                        FirebaseUser user = mAuthFB.getCurrentUser();
                         sendEmailVerification(user);
                     } else { // If sign in fails
                         Log.w(TAG, "createUserWithEmail:failure", task.getException());
@@ -95,15 +160,14 @@ public class LoginActivity extends AppCompatActivity {
         dlg.setTitle(title);
         dlg.setPositiveButton(R.string.ok, null);
         dlg.show();
-        /// test
     }
 
     private void loginUser(String email, String password) {
-        mAuth.signInWithEmailAndPassword(email, password)
+        mAuthFB.signInWithEmailAndPassword(email, password)
                 .addOnCompleteListener(this, task -> {
                     if (task.isSuccessful()) {  // Sign in success,
                         Log.d(TAG, "signInWithEmail:success");
-                        FirebaseUser user = mAuth.getCurrentUser();
+                        FirebaseUser user = mAuthFB.getCurrentUser();
                         if (!user.isEmailVerified()) {
                             showConfirmationDialog(R.string.confirm_email,
                                     getString(R.string.please_confirm_email, user.getEmail()));
@@ -142,6 +206,9 @@ public class LoginActivity extends AppCompatActivity {
                 }
             }
         });
+        btnGoogle.setOnClickListener(view -> {
+            loginWithGoogle();
+        });
     }
 
     private void onChangeContent(int btnTextId, int textViewTextId) {
@@ -152,7 +219,7 @@ public class LoginActivity extends AppCompatActivity {
     @Override
     public void onStart() {
         super.onStart();
-        FirebaseUser currentUser = mAuth.getCurrentUser();
+        FirebaseUser currentUser = mAuthFB.getCurrentUser();
         updateUI(currentUser);
     }
 }

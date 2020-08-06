@@ -20,4 +20,6 @@
     <string name="user_login_successful">Successful Sign In</string>
     <string name="ok">Ok</string>
     <string name="action_logout">Log out</string>
+    <string name="login_other_methods">Usa otro método</string>
+    <string name="login_with_google">Google</string>
 </resources>
